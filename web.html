@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hệ Chẩn đoán Bệnh Tiểu đường</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { background: linear-gradient(135deg, #e0f2fe, #ede9fe); min-height: 100vh; padding: 16px; }
+  .container { max-width: 560px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; border-radius: 16px;
+            padding: 24px 20px; text-align: center; box-shadow: 0 8px 20px rgba(37,99,235,.25); }
+  .header h1 { font-size: 22px; margin-bottom: 6px; }
+  .header p { font-size: 13px; opacity: .9; }
+  .card { background: #fff; border-radius: 16px; padding: 20px; margin-top: 16px;
+          box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
+  label { font-size: 13px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px; }
+  input { width: 100%; padding: 11px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px;
+          font-size: 16px; outline: none; transition: border-color .2s; }
+  input:focus { border-color: #2563eb; }
+  button { width: 100%; margin-top: 16px; padding: 14px; border: none; border-radius: 12px;
+           background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; font-size: 16px;
+           font-weight: 700; cursor: pointer; box-shadow: 0 6px 14px rgba(37,99,235,.3); }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .6; cursor: wait; }
+  #result { display: none; margin-top: 16px; padding: 18px; border-radius: 14px; text-align: center; }
+  #result.ok  { background: #dcfce7; border: 1.5px solid #16a34a; }
+  #result.bad { background: #fee2e2; border: 1.5px solid #dc2626; }
+  #result.err { background: #fef9c3; border: 1.5px solid #ca8a04; }
+  #result h2 { font-size: 19px; margin-bottom: 6px; }
+  #result p  { font-size: 14px; color: #475569; }
+  .bar { height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 12px; }
+  .bar span { display: block; height: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>&#129516; Hệ Chẩn đoán Bệnh Tiểu đường</h1>
+    <p>Mô hình: Logistic Regression &bull; Dataset: Pima Indians Diabetes</p>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div><label>Số lần mang thai</label><input id="pregnancies" type="number" value="6" min="0"></div>
+      <div><label>Glucose (mg/dL)</label><input id="glucose" type="number" value="148" min="0"></div>
+      <div><label>Huyết áp (mm Hg)</label><input id="blood_pressure" type="number" value="72" min="0"></div>
+      <div><label>Độ dày da (mm)</label><input id="skin_thickness" type="number" value="35" min="0"></div>
+      <div><label>Insulin (mu U/ml)</label><input id="insulin" type="number" value="0" min="0"></div>
+      <div><label>BMI</label><input id="bmi" type="number" step="0.1" value="33.6" min="0"></div>
+      <div><label>Diabetes Pedigree</label><input id="diabetes_pedigree" type="number" step="0.001" value="0.627" min="0"></div>
+      <div><label>Tuổi</label><input id="age" type="number" value="50" min="1"></div>
+    </div>
+    <button onclick="predict()" id="btn">Xét nghiệm ngay</button>
+    <div id="result">
+      <h2 id="r-title"></h2>
+      <p id="r-msg"></p>
+      <div class="bar"><span id="r-bar" style="width:0%"></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function predict() {
+  const btn = document.getElementById('btn');
+  const box = document.getElementById('result');
+  btn.disabled = true; btn.textContent = 'Đang phân tích...';
+  const ids = ['pregnancies','glucose','blood_pressure','skin_thickness','insulin','bmi','diabetes_pedigree','age'];
+  const body = {};
+  ids.forEach(i => body[i] = parseFloat(document.getElementById(i).value) || 0);
+  try {
+    const r = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    box.className = 'prediction ' + (d.prediction === 1 ? 'bad' : 'ok');
+    box.id = 'result';
+    box.style.display = 'block';
+    box.className = d.prediction === 1 ? 'bad' : 'ok';
+    document.getElementById('r-title').textContent = d.prediction === 1 ? '⚠️ Dương tính' : '✅ Âm tính';
+    document.getElementById('r-title').style.color = d.prediction === 1 ? '#b91c1c' : '#15803d';
+    document.getElementById('r-msg').textContent = d.message + ' — Độ tin cậy: ' + d.confidence_score + '%';
+    document.getElementById('r-bar').style.width = d.confidence_score + '%';
+  } catch (e) {
+    box.className = 'err'; box.id = 'result'; box.style.display = 'block';
+    document.getElementById('r-title').textContent = 'Lỗi kết nối';
+    document.getElementById('r-msg').textContent = 'Không gọi được API. Kiểm tra server đã chạy chưa.';
+    document.getElementById('r-bar').style.width = '0%';
+  }
+  btn.disabled = false; btn.textContent = 'Xét nghiệm ngay';
+}
+</script>
+</body>
+</html>
