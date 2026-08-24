@@ -1,1 +1,1 @@
-export const API_URL = 'https://DIABETES-URL.onrender.com';
+export const API_URL = 'https://diabetes-prediction-z0gh.onrender.com';
